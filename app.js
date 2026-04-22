@@ -23,6 +23,7 @@
   const endInningsBtn = $('endInnings');
   const playerSection = $('playerSection');
   const editPlayersBtn = $('editPlayers');
+  const deliverySection = $('deliverySection');
 
   // Match state
   let match = null;
@@ -85,12 +86,14 @@
     updateUI();
     scorerSection.classList.remove('hidden');
     playerSection.classList.add('hidden');
+    deliverySection.classList.remove('hidden');
     exportBtn.disabled = false;
   });
 
   editPlayersBtn.addEventListener('click', () => {
     playerSection.classList.remove('hidden');
     scorerSection.classList.add('hidden');
+    deliverySection.classList.add('hidden');
   })
 
   function setupBatsmenSelectors(){
@@ -184,13 +187,7 @@
       delivery.runs = delivery.extraRuns;
       delivery.legalDelivery = false;
       // A no-ball normally allows additional runs off the bat; for simplicity user can register next ball normally.
-    } else if (oc === 'bye' || oc === 'legbye' || oc === 'penalty'){
-      const r = Math.max(0, extra);
-      delivery.extraRuns = r;
-      delivery.runs = r;
-      delivery.legalDelivery = true;
-      // credited as extras only
-    } else if (oc.startsWith('w_')){
+    }  else if (oc.startsWith('w_')){
       // wicket on a legal delivery (unless runs came off a no-ball - simplified)
       delivery.legalDelivery = true;
       delivery.runs = 0;
@@ -238,15 +235,10 @@
     if (!bowling.find(p=>p.name===bowl.name)) bowling.push(bowl);
 
     // Update runs/wickets/balls
-    if (d.extraRuns && (d.outcome === 'wide' || d.outcome === 'noball' || d.outcome === 'bye' || d.outcome === 'legbye' || d.outcome === 'penalty')) {
+    if (d.extraRuns && (d.outcome === 'wide' || d.outcome === 'noball')) {
       inning.runs += d.runs;
       bowl.runsConceded += d.runs;
-      // extras: bye/legbye credited to extras; for byes/legbyes runs can change strike as they are completed runs
-      if (d.outcome === 'bye' || d.outcome === 'legbye'){
-        // treat as legal delivery already set; increment ball counts
-        bowl.ballsBowled += 1;
-        inning.ballsInCurrentOver += 1;
-      }
+      
     } else if (d.outcome && d.outcome.startsWith('w_')) {
       inning.wickets += 1;
       inning.ballsInCurrentOver += 1;
@@ -316,16 +308,12 @@
 
     // Reverse effects (simple reversal based on stored delivery)
     inning.runs -= last.runs;
-    if (last.extraRuns && (last.outcome === 'wide' || last.outcome === 'noball' || last.outcome === 'bye' || last.outcome === 'legbye' || last.outcome === 'penalty')) {
+    if (last.extraRuns && (last.outcome === 'wide' || last.outcome === 'noball')) {
       // extras reversed from bowler
       const bowl = match.teams[inning.bowlingTeamIndex].players.find(p=>p.name===last.bowler);
       if (bowl) bowl.runsConceded -= last.runs;
       // ballsInCurrentOver unchanged for wides/no-balls (they were illegal)
-      if (last.outcome === 'bye' || last.outcome === 'legbye'){
-        // these were legal in our model, so revert ball count
-        inning.ballsInCurrentOver = Math.max(0, inning.ballsInCurrentOver - 1);
-        if (bowl) bowl.ballsBowled = Math.max(0, bowl.ballsBowled - 1);
-      }
+      
     } else if (last.outcome && last.outcome.startsWith('w_')) {
       inning.wickets -= 1;
       inning.ballsInCurrentOver = Math.max(0, inning.ballsInCurrentOver - 1);
@@ -515,7 +503,7 @@
   }
 
   function formatDelivery(d){
-    if (d.outcome === 'wide' || d.outcome === 'noball' || d.outcome === 'bye' || d.outcome === 'legbye' || d.outcome === 'penalty'){
+    if (d.outcome === 'wide' || d.outcome === 'noball') {
       return `${capitalize(d.outcome)} +${d.runs}`;
     }
     if (d.outcome && d.outcome.startsWith('w_')){

@@ -80,14 +80,10 @@
                         <optgroup label="Extras">
                             <option value="wide">Wide</option>
                             <option value="noball">No-ball</option>
-                            <option value="bye">Bye</option>
-                            <option value="legbye">Leg-bye</option>
-                            <option value="penalty">Penalty</option>
                         </optgroup>
                         <optgroup label="Wicket">
                             <option value="w_bowled">W - Bowled</option>
                             <option value="w_caught">W - Caught</option>
-                            <option value="w_lbw">W - LBW</option>
                             <option value="w_runout">W - Run out</option>
                             <option value="w_stumped">W - Stumped</option>
                             <option value="w_hitwicket">W - Hit wicket</option>
@@ -97,7 +93,7 @@
                 </label>
 
                 <label>
-                    Runs (for bye/legbye/penalty)
+                    Runs (for noball)
                     <input id="extraRuns" type="number" min="0" value="0" />
                 </label>
 
@@ -118,7 +114,7 @@
             </div>
         </section>
 
-        <section class="log card">
+        <section class="log card" id="deliverySection">
             <h2>Last deliveries</h2>
             <ul id="deliveryLog"></ul>
         </section>
