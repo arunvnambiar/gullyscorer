@@ -21,6 +21,7 @@
   const scoreboard = $('scoreboard');
   const bowlerSelect = $('bowlerSelect');
   const endInningsBtn = $('endInnings');
+  const playerSection = $('playerSection');
 
   // Match state
   let match = null;
@@ -82,6 +83,7 @@
     setupSelectors();
     updateUI();
     scorerSection.classList.remove('hidden');
+    playerSection.classList.add('hidden');
     exportBtn.disabled = false;
   });
 
