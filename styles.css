@@ -18,7 +18,7 @@ button{background:var(--accent);color:#fff;padding:8px 12px;border:none;border-r
 button[disabled]{opacity:0.5;cursor:default}
 .hidden{display:none}
 .ballInput{margin-top:8px}
-.scoreboard{display:flex;gap:12px;flex-wrap:wrap;margin-top:12px}
+.scoreboard{display:block;gap:12px;flex-wrap:wrap;margin-top:12px}
 .panel{border:1px solid #eef;padding:8px;border-radius:6px;background:#fbfdff;min-width:200px}
 #deliveryLog{list-style:none;padding-left:0;max-height:220px;overflow:auto;margin:0}
 #deliveryLog li{padding:6px;border-bottom:1px solid #f0f0f0;font-size:0.9rem}

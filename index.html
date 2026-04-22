@@ -1,115 +1,126 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Gully Cricket Scorer</title>
-  <link rel="stylesheet" href="styles.css" />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Gully Cricket Scorer</title>
+    <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <main class="container">
-    <h1>Gully Cricket Scorer</h1>
+    <main class="container">
+        <h1>Gully Cricket Scorer</h1>
 
-    <section class="setup card">
-      <h2>Match Setup</h2>
-      <label>Team A name
-        <input id="teamAName" value="Team A" />
-      </label>
-      <label>Players (comma separated)
-        <input id="teamAPlayers" value="A1,A2,A3,A4,A5,A6" />
-      </label>
-      <label>Team B name
-        <input id="teamBName" value="Team B" />
-      </label>
-      <label>Players (comma separated)
-        <input id="teamBPlayers" value="B1,B2,B3,B4,B5,B6" />
-      </label>
-      <label>Overs
-        <input id="overs" type="number" min="1" value="4" />
-      </label>
-      <div class="row">
-        <button id="startMatch">Start Match</button>
-        <button id="exportJson" disabled>Export JSON</button>
-      </div>
-    </section>
+        <section class="setup card">
+            <h2>Match Setup</h2>
+            <label>
+                Team A name
+                <input id="teamAName" value="Team A" />
+            </label>
+            <label>
+                Players (comma separated)
+                <input id="teamAPlayers" value="A1,A2,A3,A4,A5,A6" />
+            </label>
+            <label>
+                Team B name
+                <input id="teamBName" value="Team B" />
+            </label>
+            <label>
+                Players (comma separated)
+                <input id="teamBPlayers" value="B1,B2,B3,B4,B5,B6" />
+            </label>
+            <label>
+                Overs
+                <input id="overs" type="number" min="1" value="4" />
+            </label>
+            <div class="row">
+                <button id="startMatch">Start Match</button>
+                <button id="exportJson" disabled>Export JSON</button>
+            </div>
+        </section>
 
-    <section class="scorer card hidden" id="scorerSection">
-      <h2>Live Scoring</h2>
-      <div class="row">
-        <div class="info">
-          <div><strong id="inningsLabel">Innings 1</strong></div>
-          <div id="scoreLine">0/0 (0.0)</div>
-        </div>
-        <div class="controls">
-          <label>Bowler
-            <input id="bowlerInput" placeholder="Bowler name" />
-          </label>
-          <label>Batter on strike
-            <select id="strikerSelect"></select>
-          </label>
-          <label>Non-striker
-            <select id="nonStrikerSelect"></select>
-          </label>
-        </div>
-      </div>
+        <section class="scorer card hidden" id="scorerSection">
+            <h2>Live Scoring</h2>
+            <div class="row">
+                <div class="info">
+                    <div><strong id="inningsLabel">Innings 1</strong></div>
+                    <div id="scoreLine">0/0 (0.0)</div>
+                </div>
+                <div class="controls">
+                    <label>
+                        Bowler
+                        <select id="bowlerSelect"></select>
+                    </label>
+                    <label>
+                        Batter on strike
+                        <select id="strikerSelect"></select>
+                    </label>
+                    <label>
+                        Non-striker
+                        <select id="nonStrikerSelect"></select>
+                    </label>
+                </div>
+            </div>
 
-      <div class="ballInput">
-        <label>Outcome
-          <select id="outcome">
-            <optgroup label="Runs">
-              <option value="0">0</option>
-              <option value="1">1</option>
-              <option value="2">2</option>
-              <option value="3">3</option>
-              <option value="4">4</option>
-              <option value="5">5</option>
-              <option value="6">6</option>
-            </optgroup>
-            <optgroup label="Extras">
-              <option value="wide">Wide</option>
-              <option value="noball">No-ball</option>
-              <option value="bye">Bye</option>
-              <option value="legbye">Leg-bye</option>
-              <option value="penalty">Penalty</option>
-            </optgroup>
-            <optgroup label="Wicket">
-              <option value="w_bowled">W - Bowled</option>
-              <option value="w_caught">W - Caught</option>
-              <option value="w_lbw">W - LBW</option>
-              <option value="w_runout">W - Run out</option>
-              <option value="w_stumped">W - Stumped</option>
-              <option value="w_hitwicket">W - Hit wicket</option>
-              <option value="w_retired">W - Retired hurt</option>
-            </optgroup>
-          </select>
-        </label>
+            <div class="ballInput">
+                <label>
+                    Outcome
+                    <select id="outcome">
+                        <optgroup label="Runs">
+                            <option value="0">0</option>
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                            <option value="3">3</option>
+                            <option value="4">4</option>
+                            <option value="5">5</option>
+                            <option value="6">6</option>
+                        </optgroup>
+                        <optgroup label="Extras">
+                            <option value="wide">Wide</option>
+                            <option value="noball">No-ball</option>
+                            <option value="bye">Bye</option>
+                            <option value="legbye">Leg-bye</option>
+                            <option value="penalty">Penalty</option>
+                        </optgroup>
+                        <optgroup label="Wicket">
+                            <option value="w_bowled">W - Bowled</option>
+                            <option value="w_caught">W - Caught</option>
+                            <option value="w_lbw">W - LBW</option>
+                            <option value="w_runout">W - Run out</option>
+                            <option value="w_stumped">W - Stumped</option>
+                            <option value="w_hitwicket">W - Hit wicket</option>
+                            <option value="w_retired">W - Retired hurt</option>
+                        </optgroup>
+                    </select>
+                </label>
 
-        <label>Runs (for bye/legbye/penalty)
-          <input id="extraRuns" type="number" min="0" value="0" />
-        </label>
+                <label>
+                    Runs (for bye/legbye/penalty)
+                    <input id="extraRuns" type="number" min="0" value="0" />
+                </label>
 
-        <label>Batsman dismissed (for Wicket)
-          <select id="dismissedSelect"></select>
-        </label>
+                <label>
+                    Batsman dismissed (for Wicket)
+                    <select id="dismissedSelect"></select>
+                </label>
 
-        <div class="row">
-          <button id="registerBall">Register Ball</button>
-          <button id="undoBall">Undo Last Ball</button>
-          <button id="endInnings">End Innings</button>
-        </div>
-      </div>
+                <div class="row">
+                    <button id="registerBall">Register Ball</button>
+                    <button id="undoBall">Undo Last Ball</button>
+                    <button id="endInnings">End Innings</button>
+                </div>
+            </div>
 
-      <div class="scoreboard" id="scoreboard">
-        <!-- Populated by JS -->
-      </div>
-    </section>
+            <div class="scoreboard" id="scoreboard">
+                <!-- Populated by JS -->
+            </div>
+        </section>
 
-    <section class="log card">
-      <h2>Last deliveries</h2>
-      <ul id="deliveryLog"></ul>
-    </section>
-  </main>
+        <section class="log card">
+            <h2>Last deliveries</h2>
+            <ul id="deliveryLog"></ul>
+        </section>
+    </main>
 
-  <script src="app.js"></script>
+    <script src="app.js"></script>
 </body>
 </html>

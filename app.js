@@ -1,4 +1,4 @@
-// Simple client-side scoring engine for a gully-cricket scorer.
+ï»¿// Simple client-side scoring engine for a gully-cricket scorer.
 // Designed for small matches; not exhaustive but supports ball-by-ball recording, extras, wickets, undo, and export.
 
 (function(){
@@ -19,7 +19,7 @@
   const undoBall = $('undoBall');
   const deliveryLog = $('deliveryLog');
   const scoreboard = $('scoreboard');
-  const bowlerInput = $('bowlerInput');
+  const bowlerSelect = $('bowlerSelect');
   const endInningsBtn = $('endInnings');
 
   // Match state
@@ -35,7 +35,8 @@
       ballsPerOver: 6,
       innings: [],
       currentInnings: 0,
-      deliveries: [] // global log
+      deliveries: [],
+      finished: false // mark match completion
     };
   }
 
@@ -44,6 +45,7 @@
   }
 
   function startInnings(match, battingTeamIndex, bowlingTeamIndex){
+    const battingPlayers = match.teams[battingTeamIndex].players;
     const inning = {
       battingTeamIndex,
       bowlingTeamIndex,
@@ -52,7 +54,10 @@
       oversCompleted:0,
       ballsInCurrentOver:0,
       totalOvers: match.overs,
-      deliveries: []
+      deliveries: [],
+      // track on-field batsmen
+      striker: battingPlayers[0] ? battingPlayers[0].name : null,
+      nonStriker: battingPlayers[1] ? battingPlayers[1].name : null
     };
     match.innings.push(inning);
     match.currentInnings = match.innings.length - 1;
@@ -74,7 +79,7 @@
     match = createMatch(ta, pa, tb, pb, overs);
     // Start with Team A batting, Team B bowling
     startInnings(match, 0, 1);
-    setupBatsmenSelectors();
+    setupSelectors();
     updateUI();
     scorerSection.classList.remove('hidden');
     exportBtn.disabled = false;
@@ -82,6 +87,7 @@
 
   function setupBatsmenSelectors(){
     const inning = currentInnings();
+    if (!inning) return;
     const batting = match.teams[inning.battingTeamIndex].players;
     function fill(select, includeOut=false){
       select.innerHTML = '';
@@ -94,6 +100,10 @@
     }
     fill(strikerSelect);
     fill(nonStrikerSelect);
+    // set current selections from inning state if present
+    if (inning.striker) strikerSelect.value = inning.striker;
+    if (inning.nonStriker) nonStrikerSelect.value = inning.nonStriker;
+
     // dismissed list includes all non-out players
     dismissedSelect.innerHTML = '';
     batting.forEach(p=>{
@@ -104,15 +114,35 @@
     });
   }
 
+  function setupBowlerSelector(){
+    const inning = currentInnings();
+    if (!inning) return;
+    const bowling = match.teams[inning.bowlingTeamIndex].players;
+    bowlerSelect.innerHTML = '';
+    // provide Unknown option as before
+    const unknownOpt = document.createElement('option'); unknownOpt.value = 'Unknown'; unknownOpt.textContent = 'Unknown';
+    bowlerSelect.appendChild(unknownOpt);
+    bowling.forEach(p=>{
+      const opt = document.createElement('option'); opt.value = p.name; opt.textContent = p.name;
+      bowlerSelect.appendChild(opt);
+    });
+  }
+
+  function setupSelectors(){
+    setupBatsmenSelectors();
+    setupBowlerSelector();
+  }
+
   // Register a ball (main logic)
   registerBall.addEventListener('click', () => {
     if (!match) return;
     const inning = currentInnings();
     const batTeam = match.teams[inning.battingTeamIndex];
     const bowlTeam = match.teams[inning.bowlingTeamIndex];
-    const striker = strikerSelect.value;
-    const nonStriker = nonStrikerSelect.value;
-    const bowler = bowlerInput.value.trim() || 'Unknown';
+    // prefer inning-held on-field batsmen; fallback to selectors
+    const striker = (inning.striker || strikerSelect.value).trim();
+    const nonStriker = (inning.nonStriker || nonStrikerSelect.value).trim();
+    const bowler = (bowlerSelect.value || 'Unknown').trim();
     const oc = outcome.value;
     const extra = Number(extraRuns.value) || 0;
     const dismissed = dismissedSelect.value;
@@ -130,7 +160,10 @@
       dismissed: null,
       runs: 0,
       legalDelivery: true,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      // record on-field before this ball for undo
+      prevStriker: inning.striker || striker,
+      prevNonStriker: inning.nonStriker || nonStriker
     };
 
     // Outcome handling
@@ -162,12 +195,17 @@
       // update batsman
     }
 
-    // Apply delivery to inning & players
+    // Apply delivery to inning & players (this will also update inning.striker/nonStriker)
     applyDelivery(inning, delivery);
+
+    // record post-strike state for undo
+    delivery.postStriker = inning.striker;
+    delivery.postNonStriker = inning.nonStriker;
 
     match.deliveries.push(delivery);
     inning.deliveries.push(delivery);
     renderDeliveryLog();
+    setupBatsmenSelectors(); // keep selectors in sync with on-field state
     updateUI();
 
     // If innings completed by overs or all out, auto end
@@ -179,8 +217,13 @@
   function applyDelivery(inning, d){
     const batting = match.teams[inning.battingTeamIndex].players;
     const bowling = match.teams[inning.bowlingTeamIndex].players;
+    // determine current ends (use inning state if present)
+    let sName = inning.striker || d.striker;
+    let nsName = inning.nonStriker || d.nonStriker;
+
     // find batsman and bowler objects (create if missing in team)
-    const bat = batting.find(p => p.name === d.striker) || playerFactory(d.striker);
+    const bat = batting.find(p => p.name === sName) || playerFactory(sName);
+    const nonBat = batting.find(p => p.name === nsName) || playerFactory(nsName);
     const bowl = bowling.find(p => p.name === d.bowler) || playerFactory(d.bowler);
 
     // Ensure bowlers list contains this bowler object (if not from setup)
@@ -190,37 +233,69 @@
     if (d.extraRuns && (d.outcome === 'wide' || d.outcome === 'noball' || d.outcome === 'bye' || d.outcome === 'legbye' || d.outcome === 'penalty')) {
       inning.runs += d.runs;
       bowl.runsConceded += d.runs;
-      // extras: don't increment batsman stats except for no-ball if user inputs runs on bat (not supported here)
+      // extras: bye/legbye credited to extras; for byes/legbyes runs can change strike as they are completed runs
+      if (d.outcome === 'bye' || d.outcome === 'legbye'){
+        // treat as legal delivery already set; increment ball counts
+        bowl.ballsBowled += 1;
+        inning.ballsInCurrentOver += 1;
+      }
     } else if (d.outcome && d.outcome.startsWith('w_')) {
       inning.wickets += 1;
       inning.ballsInCurrentOver += 1;
       bowl.wickets += 1;
       bowl.ballsBowled += 1;
       bowl.runsConceded += d.runs;
-      bat.out().catch?.(); // noop but left for pattern
       // mark dismissed
       const dismissedPlayer = batting.find(p=>p.name===d.dismissed.whom);
       if (dismissedPlayer) {
         dismissedPlayer.out = true;
         dismissedPlayer.howOut = d.dismissed.kind;
       }
+      // decide which end lost a batter and bring next batter to that end
+      const nextBatter = batting.find(p => !p.out && p.name !== sName && p.name !== nsName);
+      if (d.dismissed.whom === sName) {
+        sName = nextBatter ? nextBatter.name : null;
+      } else if (d.dismissed.whom === nsName) {
+        nsName = nextBatter ? nextBatter.name : null;
+      } else {
+        // If dismissal name doesn't match ends, try to replace a not-out non-on-field batter to striker
+        sName = nextBatter ? nextBatter.name : sName;
+      }
     } else {
       // regular runs
       inning.runs += d.runs;
-      bat.runs += d.runs;
-      bat.balls += 1;
-      if (d.runs === 4) bat.fours += 1;
-      if (d.runs === 6) bat.sixes += 1;
+      if (bat) {
+        bat.runs += d.runs;
+        bat.balls += 1;
+        if (d.runs === 4) bat.fours += 1;
+        if (d.runs === 6) bat.sixes += 1;
+      }
       bowl.ballsBowled += 1;
       bowl.runsConceded += d.runs;
       inning.ballsInCurrentOver += 1;
+      // if runs odd, swap strike immediately
+      if (d.legalDelivery && (d.runs % 2 === 1)) {
+        const tmp = sName; sName = nsName; nsName = tmp;
+      }
     }
 
     // Update over count if over completed and increment oversCompleted
     if (inning.ballsInCurrentOver >= match.ballsPerOver) {
       inning.oversCompleted += 1;
       inning.ballsInCurrentOver = 0;
+      // swap strike at end of over
+      const tmp = sName; sName = nsName; nsName = tmp;
     }
+
+    // persist updated ends back to inning
+    inning.striker = sName;
+    inning.nonStriker = nsName;
+
+    // assign updated objects back into team arrays if we created them locally
+    // (ensure batting list contains these objects)
+    if (!batting.find(p=>p.name===bat.name)) batting.push(bat);
+    if (nonBat && !batting.find(p=>p.name===nonBat.name)) batting.push(nonBat);
+    if (!bowling.find(p=>p.name===bowl.name)) bowling.push(bowl);
   }
 
   // Undo last ball
@@ -238,6 +313,11 @@
       const bowl = match.teams[inning.bowlingTeamIndex].players.find(p=>p.name===last.bowler);
       if (bowl) bowl.runsConceded -= last.runs;
       // ballsInCurrentOver unchanged for wides/no-balls (they were illegal)
+      if (last.outcome === 'bye' || last.outcome === 'legbye'){
+        // these were legal in our model, so revert ball count
+        inning.ballsInCurrentOver = Math.max(0, inning.ballsInCurrentOver - 1);
+        if (bowl) bowl.ballsBowled = Math.max(0, bowl.ballsBowled - 1);
+      }
     } else if (last.outcome && last.outcome.startsWith('w_')) {
       inning.wickets -= 1;
       inning.ballsInCurrentOver = Math.max(0, inning.ballsInCurrentOver - 1);
@@ -254,12 +334,17 @@
       if (bowl){ bowl.runsConceded = Math.max(0, bowl.runsConceded - last.runs); bowl.ballsBowled = Math.max(0, bowl.ballsBowled - 1); }
     }
 
-    // If we decremented an over completion earlier, adjust
+    // restore on-field batsmen to pre-ball state if recorded
+    if (last.prevStriker !== undefined) inning.striker = last.prevStriker;
+    if (last.prevNonStriker !== undefined) inning.nonStriker = last.prevNonStriker;
+
+    // If we decremented an over completion earlier, adjust oversCompleted if needed
     if (inning.oversCompleted > 0 && inning.ballsInCurrentOver === 0 && inning.deliveries.length > 0) {
-      // keep as-is
+      // keep as-is (complex edge cases omitted)
     }
 
     renderDeliveryLog();
+    setupBatsmenSelectors();
     updateUI();
   });
 
@@ -272,9 +357,10 @@
     // If first innings, start second innings with roles swapped
     if (match.innings.length === 1) {
       startInnings(match, 1, 0);
-      setupBatsmenSelectors();
+      setupSelectors();
     } else {
       // match finished
+      match.finished = true;
       alert('Match complete. Use Export JSON to save the match.');
     }
     updateUI();
@@ -290,18 +376,100 @@
     URL.revokeObjectURL(url);
   });
 
+  // Helpers for display
+  function formatOversFromInnings(inning){
+    const overs = inning.oversCompleted || 0;
+    const balls = inning.ballsInCurrentOver || 0;
+    return `${overs}.${balls}`;
+  }
+
+  function inningsSummaryLine(inning){
+    const teamName = match.teams[inning.battingTeamIndex].name;
+    return `${teamName} ${inning.runs}/${inning.wickets} (${formatOversFromInnings(inning)})`;
+  }
+
   // Render UI representations
   function updateUI(){
     const c = currentInnings();
     if (!c) return;
-    inningsLabel.textContent = `Innings ${match.currentInnings + 1}: ${match.teams[c.battingTeamIndex].name} batting`;
+    inningsLabel.textContent = match.finished ? `Match Complete` : `Innings ${match.currentInnings + 1}: ${match.teams[c.battingTeamIndex].name} batting`;
     scoreLine.textContent = `${c.runs}/${c.wickets} (${c.oversCompleted}.${c.ballsInCurrentOver})`;
     renderScoreboard();
   }
 
   function renderScoreboard(){
-    const c = currentInnings();
     scoreboard.innerHTML = '';
+    if (!match) return;
+
+    // If match finished, show final scoreboard for both teams and match outcome
+    if (match.finished) {
+      const header = document.createElement('div'); header.className = 'panel';
+      header.innerHTML = `<strong>Match Complete</strong><br/><small class="muted">Final scorecards</small><hr/>`;
+      scoreboard.appendChild(header);
+
+      // show innings summaries (if present)
+      const summaryPanel = document.createElement('div'); summaryPanel.className = 'panel';
+      summaryPanel.innerHTML = `<strong>Innings Summary</strong><hr/>`;
+      match.innings.forEach((inn, idx) => {
+        const p = document.createElement('div');
+        p.textContent = `Innings ${idx+1}: ${inningsSummaryLine(inn)}`;
+        summaryPanel.appendChild(p);
+      });
+      scoreboard.appendChild(summaryPanel);
+
+      // Determine match outcome (assume two innings)
+      let outcomeText = 'Result: N/A';
+      if (match.innings.length >= 2) {
+        const a = match.innings[0];
+        const b = match.innings[1];
+        const teamAName = match.teams[a.battingTeamIndex].name;
+        const teamBName = match.teams[b.battingTeamIndex].name;
+        if (a.runs > b.runs) {
+          const diff = a.runs - b.runs;
+          outcomeText = `Result: ${teamAName} won by ${diff} run${diff===1?'':'s'}`;
+        } else if (b.runs > a.runs) {
+          // calculate wickets remaining for team B
+          const battingPlayers = match.teams[b.battingTeamIndex].players.length;
+          const maxWickets = Math.max(0, battingPlayers - 1);
+          const wicketsLost = b.wickets;
+          const wicketsRemaining = Math.max(0, maxWickets - wicketsLost);
+          outcomeText = `Result: ${teamBName} won by ${wicketsRemaining} wicket${wicketsRemaining===1?'':'s'}`;
+        } else {
+          outcomeText = 'Result: Match tied';
+        }
+      }
+      const outcomePanel = document.createElement('div'); outcomePanel.className = 'panel';
+      outcomePanel.innerHTML = `<strong>${outcomeText}</strong>`;
+      scoreboard.appendChild(outcomePanel);
+
+      // For each team show batting then bowling
+      match.teams.forEach((team, idx) => {
+        const batPanel = document.createElement('div'); batPanel.className = 'panel';
+        batPanel.innerHTML = `<strong>Batting - ${team.name}</strong><hr/>`;
+        team.players.forEach(p=>{
+          const li = document.createElement('div');
+          li.textContent = `${p.name} ${p.out? '(out - '+(p.howOut||'')+')' : '(not out)'} ï¿½ ${p.runs}(${p.balls})`;
+          batPanel.appendChild(li);
+        });
+        scoreboard.appendChild(batPanel);
+
+        const bowlPanel = document.createElement('div'); bowlPanel.className = 'panel';
+        bowlPanel.innerHTML = `<strong>Bowling - ${team.name}</strong><hr/>`;
+        team.players.forEach(p=>{
+          const overs = p.ballsBowled ? `${Math.floor(p.ballsBowled/6)}.${p.ballsBowled%6}` : '0.0';
+          const eco = p.ballsBowled ? (p.runsConceded / (p.ballsBowled/6 || 1)).toFixed(2) : '0.00';
+          const li = document.createElement('div');
+          li.textContent = `${p.name} ï¿½ O: ${overs} R: ${p.runsConceded} W: ${p.wickets} Econ: ${eco}`;
+          bowlPanel.appendChild(li);
+        });
+        scoreboard.appendChild(bowlPanel);
+      });
+
+      return;
+    }
+
+    // Default: render current innings scoreboard
+    const c = currentInnings();
     if (!c) return;
     const battingTeam = match.teams[c.battingTeamIndex];
     const bowlingTeam = match.teams[c.bowlingTeamIndex];
@@ -311,7 +479,7 @@
     batPanel.innerHTML = `<strong>Batting - ${battingTeam.name}</strong><br/><small class="muted">Runs: ${c.runs} Wickets: ${c.wickets} Overs: ${c.oversCompleted}.${c.ballsInCurrentOver}</small><hr/>`;
     battingTeam.players.forEach(p=>{
       const li = document.createElement('div');
-      li.textContent = `${p.name} ${p.out? '(out - '+(p.howOut||'')+')' : ''} — ${p.runs}(${p.balls})`;
+      li.textContent = `${p.name} ${p.out? '(out - '+(p.howOut||'')+')' : ''} ï¿½ ${p.runs}(${p.balls})`;
       batPanel.appendChild(li);
     });
     scoreboard.appendChild(batPanel);
@@ -323,7 +491,7 @@
       const overs = p.ballsBowled ? `${Math.floor(p.ballsBowled/6)}.${p.ballsBowled%6}` : '0.0';
       const eco = p.ballsBowled ? (p.runsConceded / (p.ballsBowled/6 || 1)).toFixed(2) : '0.00';
       const li = document.createElement('div');
-      li.textContent = `${p.name} — O: ${overs} R: ${p.runsConceded} W: ${p.wickets} Econ: ${eco}`;
+      li.textContent = `${p.name} ï¿½ O: ${overs} R: ${p.runsConceded} W: ${p.wickets} Econ: ${eco}`;
       bowlPanel.appendChild(li);
     });
     scoreboard.appendChild(bowlPanel);
@@ -333,7 +501,7 @@
     deliveryLog.innerHTML = '';
     match.deliveries.slice().reverse().forEach(d=>{
       const li = document.createElement('li');
-      li.textContent = `Over ${d.over}.${d.ballInOver}: ${d.striker} vs ${d.bowler} — ${formatDelivery(d)}`;
+      li.textContent = `Over ${d.over}.${d.ballInOver}: ${d.striker} vs ${d.bowler} ï¿½ ${formatDelivery(d)}`;
       deliveryLog.appendChild(li);
     });
   }
