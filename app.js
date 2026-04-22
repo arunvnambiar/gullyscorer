@@ -25,6 +25,19 @@
   const editPlayersBtn = $('editPlayers');
   const deliverySection = $('deliverySection');
 
+  // add a dynamic target/requirement label under the existing info area
+  const infoContainer = document.querySelector('#scorerSection .info');
+  const targetLine = document.createElement('div');
+  targetLine.id = 'targetLine';
+  targetLine.className = 'muted';
+  targetLine.textContent = '';
+  // append after the scoreLine so it appears with other match info
+  if (scoreLine && scoreLine.parentElement) {
+    scoreLine.parentElement.appendChild(targetLine);
+  } else if (infoContainer) {
+    infoContainer.appendChild(targetLine);
+  }
+
   // Match state
   let match = null;
 
@@ -58,9 +71,9 @@
       ballsInCurrentOver:0,
       totalOvers: match.overs,
       deliveries: [],
-      // track on-field batsmen
-      striker: battingPlayers[0] ? battingPlayers[0].name : null,
-      nonStriker: battingPlayers[1] ? battingPlayers[1].name : null
+      // do not auto-assign ends here - set when user selects from dropdowns
+      striker: null,
+      nonStriker: null
     };
     match.innings.push(inning);
     match.currentInnings = match.innings.length - 1;
@@ -102,6 +115,14 @@
     const batting = match.teams[inning.battingTeamIndex].players;
     function fill(select, includeOut=false){
       select.innerHTML = '';
+
+      // add a placeholder option so ends are not forced to a default value
+      const ph = document.createElement('option');
+      ph.value = '';
+      ph.textContent = '-- select --';
+      ph.selected = true;
+      select.appendChild(ph);
+
       batting.forEach(p=>{
         if (!p.out || includeOut) {
           const opt = document.createElement('option'); opt.value = p.name; opt.textContent = p.name;
@@ -111,9 +132,43 @@
     }
     fill(strikerSelect);
     fill(nonStrikerSelect);
-    // set current selections from inning state if present
+    // set current selections from inning state if present (otherwise keep placeholder)
     if (inning.striker) strikerSelect.value = inning.striker;
     if (inning.nonStriker) nonStrikerSelect.value = inning.nonStriker;
+
+    // wire change handlers to set on-field batsmen when user picks from dropdown
+    strikerSelect.onchange = () => {
+      const val = strikerSelect.value;
+      // ignore placeholder
+      if (!val) return;
+      const cur = currentInnings();
+      if (!cur) return;
+      // prevent same player at both ends
+      if (cur.nonStriker === val) {
+        alert('A player cannot occupy both striker and non-striker positions. Choose a different player.');
+        strikerSelect.value = cur.striker || '';
+        return;
+      }
+      cur.striker = val;
+      // refresh selectors and UI to reflect change (dismissed list, etc.)
+      setupBatsmenSelectors();
+      updateUI();
+    };
+
+    nonStrikerSelect.onchange = () => {
+      const val = nonStrikerSelect.value;
+      if (!val) return;
+      const cur = currentInnings();
+      if (!cur) return;
+      if (cur.striker === val) {
+        alert('A player cannot occupy both striker and non-striker positions. Choose a different player.');
+        nonStrikerSelect.value = cur.nonStriker || '';
+        return;
+      }
+      cur.nonStriker = val;
+      setupBatsmenSelectors();
+      updateUI();
+    };
 
     // dismissed list includes all non-out players
     dismissedSelect.innerHTML = '';
@@ -390,6 +445,26 @@
     if (!c) return;
     inningsLabel.textContent = match.finished ? `Match Complete` : `Innings ${match.currentInnings + 1}: ${match.teams[c.battingTeamIndex].name} batting`;
     scoreLine.textContent = `${c.runs}/${c.wickets} (${c.oversCompleted}.${c.ballsInCurrentOver})`;
+
+    // Show target and runs required when second innings is underway
+    if (match.innings.length >= 2 && match.currentInnings === 1 && match.innings[0]) {
+      const first = match.innings[0];
+      const target = first.runs + 1;
+      const runsNeeded = Math.max(0, target - c.runs);
+      const totalBalls = c.totalOvers * match.ballsPerOver;
+      const ballsBowled = (c.oversCompleted * match.ballsPerOver) + c.ballsInCurrentOver;
+      const ballsRemaining = Math.max(0, totalBalls - ballsBowled);
+
+      const reqText = runsNeeded > 0
+        ? `${runsNeeded} run${runsNeeded===1?'':'s'} required in ${ballsRemaining} ball${ballsRemaining===1?'':'s'}`
+        : 'Target achieved';
+
+      targetLine.textContent = `Target: ${target} — ${reqText}`;
+    } else {
+      // clear targetLine when not applicable
+      targetLine.textContent = '';
+    }
+
     renderScoreboard();
   }
 
