@@ -22,6 +22,7 @@
   const bowlerSelect = $('bowlerSelect');
   const endInningsBtn = $('endInnings');
   const playerSection = $('playerSection');
+  const editPlayersBtn = $('editPlayers');
 
   // Match state
   let match = null;
@@ -86,6 +87,11 @@
     playerSection.classList.add('hidden');
     exportBtn.disabled = false;
   });
+
+  editPlayersBtn.addEventListener('click', () => {
+    playerSection.classList.remove('hidden');
+    scorerSection.classList.add('hidden');
+  })
 
   function setupBatsmenSelectors(){
     const inning = currentInnings();
