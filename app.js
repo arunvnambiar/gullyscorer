@@ -448,7 +448,7 @@
         batPanel.innerHTML = `<strong>Batting - ${team.name}</strong><hr/>`;
         team.players.forEach(p=>{
           const li = document.createElement('div');
-          li.textContent = `${p.name} ${p.out? '(out - '+(p.howOut||'')+')' : '(not out)'} � ${p.runs}(${p.balls})`;
+          li.textContent = `${p.name} ${p.out? '(out - '+(p.howOut||'')+')' : '(not out)'} - ${p.runs}(${p.balls})`;
           batPanel.appendChild(li);
         });
         scoreboard.appendChild(batPanel);
@@ -459,7 +459,7 @@
           const overs = p.ballsBowled ? `${Math.floor(p.ballsBowled/6)}.${p.ballsBowled%6}` : '0.0';
           const eco = p.ballsBowled ? (p.runsConceded / (p.ballsBowled/6 || 1)).toFixed(2) : '0.00';
           const li = document.createElement('div');
-          li.textContent = `${p.name} � O: ${overs} R: ${p.runsConceded} W: ${p.wickets} Econ: ${eco}`;
+          li.textContent = `${p.name} - O: ${overs} R: ${p.runsConceded} W: ${p.wickets} Econ: ${eco}`;
           bowlPanel.appendChild(li);
         });
         scoreboard.appendChild(bowlPanel);
@@ -479,7 +479,7 @@
     batPanel.innerHTML = `<strong>Batting - ${battingTeam.name}</strong><br/><small class="muted">Runs: ${c.runs} Wickets: ${c.wickets} Overs: ${c.oversCompleted}.${c.ballsInCurrentOver}</small><hr/>`;
     battingTeam.players.forEach(p=>{
       const li = document.createElement('div');
-      li.textContent = `${p.name} ${p.out? '(out - '+(p.howOut||'')+')' : ''} � ${p.runs}(${p.balls})`;
+      li.textContent = `${p.name} ${p.out? '(out - '+(p.howOut||'')+')' : ''} - ${p.runs}(${p.balls})`;
       batPanel.appendChild(li);
     });
     scoreboard.appendChild(batPanel);
@@ -491,7 +491,7 @@
       const overs = p.ballsBowled ? `${Math.floor(p.ballsBowled/6)}.${p.ballsBowled%6}` : '0.0';
       const eco = p.ballsBowled ? (p.runsConceded / (p.ballsBowled/6 || 1)).toFixed(2) : '0.00';
       const li = document.createElement('div');
-      li.textContent = `${p.name} � O: ${overs} R: ${p.runsConceded} W: ${p.wickets} Econ: ${eco}`;
+      li.textContent = `${p.name} - O: ${overs} R: ${p.runsConceded} W: ${p.wickets} Econ: ${eco}`;
       bowlPanel.appendChild(li);
     });
     scoreboard.appendChild(bowlPanel);
@@ -501,7 +501,7 @@
     deliveryLog.innerHTML = '';
     match.deliveries.slice().reverse().forEach(d=>{
       const li = document.createElement('li');
-      li.textContent = `Over ${d.over}.${d.ballInOver}: ${d.striker} vs ${d.bowler} � ${formatDelivery(d)}`;
+      li.textContent = `Over ${d.over}.${d.ballInOver}: ${d.striker} vs ${d.bowler} - ${formatDelivery(d)}`;
       deliveryLog.appendChild(li);
     });
   }
